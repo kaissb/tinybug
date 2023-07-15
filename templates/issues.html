@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Issue Tracker</title>
+</head>
+<body>
+    <table>
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Message</th>
+                <th>Timestamp</th>
+                <th>Stack Trace</th>
+                <th>Operating System</th>
+                <th>Browser</th>
+                <th>Version</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for issue in issues %}
+            <tr>
+                <td>{{ issue.id }}</td>
+                <td>{{ issue.message }}</td>
+                <td>{{ issue.timestamp }}</td>
+                <td>{{ issue.stack_trace }}</td>
+                <td>{{ issue.os }}</td>
+                <td>{{ issue.browser }}</td>
+                <td>{{ issue.version }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
