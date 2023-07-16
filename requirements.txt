@@ -1,6 +1,8 @@
 fastapi==0.68.2
 uvicorn==0.15.0
 gunicorn==20.1.0
-tinydb==4.5.1
 jinja2==3.0.1
 python-dotenv==1.0.0
+aiofiles==0.7.0
+python-multipart==0.0.5
+pymongo[srv]==3.12.0

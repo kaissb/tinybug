@@ -1,35 +1,143 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Issue Tracker</title>
-</head>
-<body>
-    <table>
-        <thead>
-            <tr>
-                <th>Id</th>
-                <th>Message</th>
-                <th>Timestamp</th>
-                <th>Stack Trace</th>
-                <th>Operating System</th>
-                <th>Browser</th>
-                <th>Version</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for issue in issues %}
-            <tr>
-                <td>{{ issue.id }}</td>
-                <td>{{ issue.message }}</td>
-                <td>{{ issue.timestamp }}</td>
-                <td>{{ issue.stack_trace }}</td>
-                <td>{{ issue.os }}</td>
-                <td>{{ issue.browser }}</td>
-                <td>{{ issue.version }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+<link rel="stylesheet" href="/static/css/bootstrap.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<nav class="tinybug-nav" role="navigation">
+    <div class="container-wrap">
+        <div class="top-menu">
+            <div class="row">
+                <div class="col-xs-2">
+                    <div id="fh5co-logo"><a href="index.html">TinyBUG</a></div>
+                </div>
+                <div class="col-xs-10 text-right menu-1">
+                    <ul>
+                        <li><a href="/connect">Connect my app</a></li>
+                        <li class="active"><a href="/issues">My Issues</a></li>
+                        <li><a href="/settings">Settings</a></li>
+                        <li><a href="/comingsoon">TinyBug Cloud</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</nav>
+<div class="container-wrap">
+    <div id="tinybug-content">
+        <div class="row">
+            <div class="col-md-12 animate-box">
+                <table class="table table-striped table-hover table-bordered">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Id</th>
+                            <th>Message</th>
+                            <th>Timestamp</th>
+                            <th>Stack Trace</th>
+                            <th>Operating System</th>
+                            <th>Browser</th>
+                            <th>Version</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for issue in issues %}
+                        <tr>
+                            <td>{{ issue._id }}</td>
+                            <td>{{ issue.message }}</td>
+                            <td>{{ issue.timestamp }}</td>
+                            <td>{{ issue.stack_trace }}</td>
+                            <td>{{ issue.os }}</td>
+                            <td>{{ issue.browser }}</td>
+                            <td>{{ issue.version }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="d-flex justify-content-between align-items-center">
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination" data-total-pages="{{ total_pages }}">
+                            <li class="page-item" id="prev-button">
+                                <a class="page-link" href="#" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item"><a class="page-link" href="#" id="current-page">1</a></li>
+                            <li class="page-item" id="next-button">
+                                <a class="page-link" href="#" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div id="total-issues" class="ml-auto">Total Issues: {{ total_pages }}</div>
+
+                </div>
+                
+                
+                
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    
+    const prevButton = document.querySelector('#prev-button');
+    const nextButton = document.querySelector('#next-button');
+    const currentPageEl = document.querySelector('#current-page');
+    const form = document.querySelector('form');
+    const paginationEl = document.querySelector('.pagination');
+    const totalPages = parseInt(paginationEl.dataset.totalPages);
+    // Initialize the current page
+    let currentPage = 1;
+
+    // Fetch issues and render table
+    const fetchIssues = async (page) => {
+        const formData = new FormData(form);
+        formData.set('page', page);
+
+        // Send a POST request
+        const response = await fetch("/issues", {
+            method: 'POST',
+            body: formData
+        });
+
+        // Handle the response
+        if (response.ok) {
+            // Parse the new page and replace the current table
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(await response.text(), 'text/html');
+            const newTable = newDoc.querySelector('.table');
+            const currentTable = document.querySelector('.table');
+            currentTable.parentNode.replaceChild(newTable, currentTable);
+
+            // Update the current page
+            currentPage = page;
+            currentPageEl.textContent = currentPage;
+
+            // Disable/enable the prev/next buttons
+            prevButton.classList.toggle('disabled', currentPage <= 1);
+            nextButton.classList.toggle('disabled', false); // Enable next button as we don't know the total pages
+        } else {
+            console.error('Failed to fetch data!');
+        }
+    };
+
+    prevButton.addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            fetchIssues();
+            currentPageEl.textContent = currentPage;
+        }
+    });
+    
+    nextButton.addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            fetchIssues();
+            currentPageEl.textContent = currentPage;
+        }
+    });
+    
+    // Fetch the total issues
+    fetchTotalIssues();
+</script>
+
+

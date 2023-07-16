@@ -11,3 +11,12 @@ services:
       - 80:80
     environment:
       - DATABASE_URL=${DATABASE_URL}
+    links:
+      - db
+
+  db:
+    image: mongo:latest
+    volumes:
+      - ./data/db:/data/db
+    ports:
+      - 27017:27017

@@ -2,20 +2,30 @@
 
 from app.database.database import db
 from app.database.models import Issue
-from fastapi import FastAPI, Request, Header, HTTPException
+from fastapi import FastAPI, Request, Header, HTTPException, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from app.database.database import collection
 from dotenv import load_dotenv
-import os
+import os, secrets
 
 load_dotenv()  # Load environment variables from .env file
 templates = Jinja2Templates(directory="templates")
 app = FastAPI()
 
+# Mount the static files directory
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 # Get the API key from the environment variable
+key = os.getenv("SESSION_SECRET_KEY")
 server_api_key = os.getenv("API_KEY")
-user = os.getenv("USERNAME")
 pwd = os.getenv("PASSWORD")
+
+
+def verify_password(password: str):
+    valid_password = secrets.compare_digest(password, pwd)
+    return valid_password
 
 
 @app.get("/")
@@ -23,45 +33,47 @@ def read_root():
     return {"This is": "TinyBug!"}
 
 
-@app.get("/issues", response_class=HTMLResponse)
-def get_issues(request: Request):
-    issues = db.all()
+@app.get("/login", response_class=HTMLResponse)
+async def login_form(request: Request, error_message: str = ""):
     return templates.TemplateResponse(
-        "issues.html", {"request": request, "issues": issues}
+        "login.html", {"request": request, "error_message": error_message}
     )
 
 
-@app.post("/issues")
+@app.get("/issues", response_class=HTMLResponse)
+def issues_get_redirect(request: Request):
+    return templates.TemplateResponse(
+        "login.html", {"request": request, "error_message": ""}
+    )
+
+
+@app.post("/issues", response_class=HTMLResponse)
+async def get_issues(request: Request, password: str = Form(...), page: int = Form(1)):
+    if not verify_password(password):
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error_message": "Invalid password."}
+        )
+    else:
+        per_page = 10  # Change as needed
+        start = (page - 1) * per_page
+        issues = list(collection.find().skip(start).limit(per_page))
+        total_issues = collection.count_documents({})
+        return templates.TemplateResponse(
+            "issues.html", {"request": request, "issues": issues, "page": page, "total_pages": total_issues // per_page + (1 if total_issues % per_page > 0 else 0)}
+        )
+
+
+@app.post("/report_issue")
 def report_issue(issue: Issue, request: Request, api_key: str = Header(...)):
     if server_api_key != api_key:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
-    issue_id = len(db) + 1
-    # Convert the timestamp to string
-    timestamp_str = issue.timestamp.isoformat()
-    db.insert(
-        {
-            "id": issue_id,
-            "message": issue.message,
-            "timestamp": timestamp_str,
-            "stack_trace": issue.stack_trace,
-        }
-    )
-    return {"message": "Issue reported successfully!", "issue_id": issue_id}
+    issue_data = issue.dict()
+    issue_data["timestamp"] = issue_data["timestamp"].isoformat()
 
+    inserted_issue = collection.insert_one(issue_data)
 
-@app.post("/login")
-def login(request: Request, username: str, password: str):
-    if username == user and password == pwd:
-        # Successful login, redirect to the protected page
-        return RedirectResponse(url="/protected")
-    else:
-        # Invalid credentials, display error message
-        return templates.TemplateResponse(
-            "login.html", {"request": request, "error_message": "Invalid credentials"}
-        )
-
-
-@app.get("/login", response_class=HTMLResponse)
-def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return {
+        "message": "Issue reported successfully!",
+        "issue_id": str(inserted_issue.inserted_id),
+    }
